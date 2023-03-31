@@ -9,7 +9,9 @@ object WordCountbak {
     val conf: SparkConf = new SparkConf().setAppName("wc").setMaster("local[*]")
     val sc: SparkContext = new SparkContext(conf)
     sc.setLogLevel("Warn")
-    //TODO 2.source/读取数据
+    // 查看spark版本
+    println(sc.version)
+//    //TODO 2.source/读取数据
     val lines: RDD[String] = sc.textFile("data/input/word.txt")
     //TODO 3.transformation/数据操作/转换
     val words: RDD[String] = lines.flatMap(_.split(" "))
@@ -22,7 +24,7 @@ object WordCountbak {
     //收集为本地集合在输出
     println(result.collect().toBuffer)
     //输出到路径
-    result.repartition(1).saveAsTextFile("data/output/result4")
+    result.repartition(1).saveAsTextFile("data/output/result5")
     Thread.sleep(10000*100)
     sc.stop()
 
