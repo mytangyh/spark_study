@@ -1,4 +1,5 @@
 package com.example.hello
+
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
@@ -7,6 +8,7 @@ import java.io.{ByteArrayInputStream, File, FileInputStream}
 import scala.collection.mutable.ArrayBuffer
 import java.util.zip.GZIPInputStream
 import org.apache.hadoop.fs.{FileSystem, Path}
+
 object Targz {
   val logger: Logger = Logger.getLogger(getClass.getName)
   logger.setLevel(Level.INFO)
@@ -19,29 +21,30 @@ object Targz {
       .config("hive.exec.dynamic.partition.mode", "nonstrict")
       .getOrCreate()
 
-//    val file = new File("hdfs://node01.hadoop.com:8020/shenzhen/ta.tar.gz")
-//    val fileInputStream = new FileInputStream(file)
-    val filePath = new Path("hdfs://node01.hadoop.com:8020/shenzhen/ta.tar.gz")
+    //    val file = new File("hdfs://node01.hadoop.com:8020/shenzhen/ta.tar.gz")
+    //    val fileInputStream = new FileInputStream(file)
+    val filePath = new Path("hdfs://node01.hadoop.com:8020/shenzhen/ta2.tar.gz")
     val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val inputStream = fileSystem.open(filePath)
     val gzipInputStream = new GZIPInputStream(inputStream)
     val tarArchiveInputStream = new TarArchiveInputStream(gzipInputStream)
-//    val gzipInputStream = new GZIPInputStream(fileInputStream)
-//    val tarArchiveInputStream = new TarArchiveInputStream(gzipInputStream)
+    //    val gzipInputStream = new GZIPInputStream(fileInputStream)
+    //    val tarArchiveInputStream = new TarArchiveInputStream(gzipInputStream)
 
     // 缓存读取
-    val blockSize = 1024 * 1024 // 分块大小，1MB
+    val blockSize = 5*1024 * 1024 // 分块大小，1MB
     val bytes = new Array[Byte](blockSize)
     val buffer = new ArrayBuffer[String]()
 
     var entry = tarArchiveInputStream.getNextTarEntry
     while (entry != null) {
-      if (!entry.isDirectory) {
-        logger.info(s"File: ${entry.getName}")
+      if (!entry.isDirectory&&entry.getSize>0) {
+        println(s"File: ${entry.getName}")
         var bytesRead = 0
         buffer.clear()
         while ( {
-          bytesRead = tarArchiveInputStream.read(bytes); bytesRead != -1
+          bytesRead = tarArchiveInputStream.read(bytes)
+          bytesRead != -1
         }) {
           buffer.append(new String(bytes, 0, bytesRead))
         }
@@ -50,7 +53,7 @@ object Targz {
         println(s"Number of lines: ${lines.length}")
 
         // 每行数据的字段去掉单引号并以制表符分割
-        val cleanedLines = lines.map(_.replaceAll("'", "").split("\t"))
+        val cleanedLines = lines.map(_.replaceAll("'", "").trim.split("\t")).filter(_.nonEmpty)
 
         // 将字段转换为DataFrame
         val rdd = spark.sparkContext.parallelize(cleanedLines)

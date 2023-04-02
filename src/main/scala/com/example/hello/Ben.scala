@@ -18,39 +18,50 @@ object Ben {
 
     val spark = SparkSession.builder()
       .appName("Load Tar Gz File to Hive")
-//      .enableHiveSupport()
-//      .config("hive.exec.dynamic.partition.mode", "nonstrict")
+      //      .enableHiveSupport()
+      //      .config("hive.exec.dynamic.partition.mode", "nonstrict")
       .master("local[*]")
       .getOrCreate()
 
-    val file = new File("data/input/ta.tar.gz")
+    val file = new File("data/input/ta2.tar.gz")
     val fileInputStream = new FileInputStream(file)
     val gzipInputStream = new GZIPInputStream(fileInputStream)
     val tarArchiveInputStream = new TarArchiveInputStream(gzipInputStream)
 
     // 缓存读取
-    val blockSize = 1024 * 1024 // 分块大小，1MB
+    val blockSize = 5*1024 * 1024 // 分块大小，1MB
     val bytes = new Array[Byte](blockSize)
     val buffer = new ArrayBuffer[String]()
     var linesLen = new util.ArrayList[String]()
     var entry = tarArchiveInputStream.getNextTarEntry
     while (entry != null) {
-      if (!entry.isDirectory) {
-//        println(s"File: ${entry.getName}")
+      if (!entry.isDirectory&&entry.getSize>0) {
+        //        println(s"File: ${entry.getName}")
         logger.info(s"File: ${entry.getName}")
+
         var bytesRead = 0
         buffer.clear()
-        while ({bytesRead = tarArchiveInputStream.read(bytes); bytesRead != -1}) {
+        while ( {
+          bytesRead = tarArchiveInputStream.read(bytes); bytesRead != -1
+        }) {
           buffer.append(new String(bytes, 0, bytesRead))
         }
         val str = buffer.mkString("")
         val lines = str.split("\n")
-//        println(s"Number of lines: ${lines.length}")
+        //        println(s"Number of lines: ${lines.length}")
         logger.info(s"Number of lines: ${lines.length}")
-        linesLen.add(entry.getName+":" +lines.length.toString)
+        linesLen.add(entry.getName + ":" + lines.length.toString)
+        //       测试空文件
+        val cleanedLines = lines.map(_.replaceAll("'", "").trim.split("\t")).filter(_.nonEmpty)
 
+        // 将字段转换为DataFrame
+        val rdd = spark.sparkContext.parallelize(cleanedLines)
+          .map(fields => (fields(0), fields(1), fields(2), fields(3), fields(4), fields(5), fields(6), fields(7).substring(0, 1).toInt, fields(8), fields(0).substring(0, 6)))
+        import spark.implicits._
+        val df = rdd.toDF("Transaction_Date", "Transaction_Time_Id", "Process_Date", "Process_Date_Id", "Card_Type", "Entry_Address ", "Exit_Address", "Transaction_Cnt", "Card_Issuer", "partition_month")
+        df.show()
 
-       System.gc() // 手动调用垃圾回收
+        System.gc() // 手动调用垃圾回收
       }
       entry = tarArchiveInputStream.getNextTarEntry
     }
@@ -58,7 +69,7 @@ object Ben {
     tarArchiveInputStream.close()
     //把linesLen写入文件
     import java.io._
-    val pw = new PrintWriter(new File("data/output/linesLen.txt" ))
+    val pw = new PrintWriter(new File("data/output/test.txt"))
     for (i <- 0 until linesLen.size()) {
       pw.write(linesLen.get(i) + "")
       pw.write("\r")
