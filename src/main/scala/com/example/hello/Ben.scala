@@ -32,7 +32,7 @@ object Ben {
     val blockSize = 5*1024 * 1024 // 分块大小，1MB
     val bytes = new Array[Byte](blockSize)
     val buffer = new ArrayBuffer[String]()
-    var linesLen = new util.ArrayList[String]()
+    val linesLen = new util.ArrayList[String]()
     var entry = tarArchiveInputStream.getNextTarEntry
     while (entry != null) {
       if (!entry.isDirectory&&entry.getSize>0) {
