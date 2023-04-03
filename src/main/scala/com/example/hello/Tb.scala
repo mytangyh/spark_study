@@ -55,12 +55,12 @@ object Tb {
         import spark.implicits._
         val df = rdd.toDF("Transaction_Date", "Transaction_Time_Id", "Process_Date", "Process_Date_Id", "Card_Type", "Entry_Address ", "Exit_Address", "Line_Id", "Pasgr_Type", "Transaction_Cnt", "Card_Issuer", "partition_month")
         //        df.show()
-        if (df.count() > 0) {
-          df.write.mode(SaveMode.Append).insertInto("acc.ods_acc_cardSort_15min")
-        }
-        //        df.createOrReplaceTempView("tmp_table")
-        //        spark.sql("INSERT INTO acc.ods_acc_cardSort_15min PARTITION(partition_month) SELECT * FROM tmp_table")
-        System.gc() // 手动调用垃圾回收
+//        if (df.count() > 0) {
+//          df.write.mode(SaveMode.Append).insertInto("acc.ods_acc_cardSort")
+//        }
+                df.createOrReplaceTempView("tmp_table")
+                spark.sql("INSERT INTO acc.ods_acc_cardSort PARTITION(partition_month) SELECT * FROM tmp_table")
+//        System.gc() // 手动调用垃圾回收
       }
       entry = tarArchiveInputStream.getNextTarEntry
     }
@@ -68,3 +68,25 @@ object Tb {
     tarArchiveInputStream.close()
   }
 }
+
+/**
+ * CREATE TABLE IF NOT EXISTS acc.ods_acc_cardSort_15min (
+    Transaction_Date CHAR(8) COMMENT '交易日',
+    Transaction_Time_Id CHAR(3) COMMENT '时间片ID',
+    Process_Date CHAR(8) COMMENT '处理日',
+    Process_Time_Id CHAR(3) COMMENT '交易时间片ID',
+    Card_Type CHAR(2) COMMENT '卡类型',
+    Entry_Address CHAR(6) COMMENT '进站站点',
+    Exit_Address CHAR(6) COMMENT '出站站点',
+    Line_Id CHAR(3) COMMENT '线路编号',
+    Pasgr_Type CHAR(1) COMMENT '客流类型 0：本线客流 1：换出客流 2：换入客流 3：途经客流',
+    Transaction_Cnt Float COMMENT '交易次数',
+    Card_Issuer CHAR(4) COMMENT '发卡方标识'
+)COMMENT 'tb清分表15min'
+PARTITIONED BY (partition_month string)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE
+location '/warehouse/acc/ods/ods_acc_cardSort_15min'
+TBLPROPERTIES ('orc.compress'='SNAPPY');
+ */
